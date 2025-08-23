@@ -1,32 +1,25 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+var mongoDbConnectionString = builder.Configuration.GetConnectionString("MongoDb");
+var sqlServerConnectionString = builder.Configuration.GetConnectionString("SqlServer");
 
 
 builder.Services.AddHealthChecks()
-    .AddRedis(builder.Configuration.GetConnectionString("Redis"), name: "redis-check")
+    .AddRedis(redisConnectionString, name: "redis-check")
     .AddMongoDb(
-        mongoDbConnectionString: builder.Configuration.GetConnectionString("MongoDb"),
+        sp => new MongoClient(mongoDbConnectionString),
+        sp => "HealthChecks", 
         name: "mongodb-check",
-        databaseName: "your_database_name");
-
-
-
-
-
-
-
-
-
-
-
-
+        failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy,
+        tags: new[] { "mongodb" }
+    )
+    .AddSqlServer(sqlServerConnectionString, name: "sqlserver-check", tags: new[] { "sqlserver" });
 
 var app = builder.Build();
 app.UseHealthChecks("/health");
-
-
 app.Run();
-
