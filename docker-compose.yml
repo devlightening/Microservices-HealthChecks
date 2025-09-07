@@ -9,7 +9,7 @@ services:
       - "27017:27017"
     environment:
       - MONGO_INITDB_ROOT_USERNAME=mongouser
-      - MONGO_INITDB_ROOT_PASSWORD=123 # Burası güncellenecek
+      - MONGO_INITDB_ROOT_PASSWORD=YourStrongPassword!*1.2.3
     restart: always
     volumes:
       - mongodb_data:/data/db
@@ -22,7 +22,7 @@ services:
       - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourStrongPassword!123 # Lütfen güçlü bir şifre kullanın
+      - SA_PASSWORD=YourStrongPassword!*1.2.3
     volumes:
       - sqlserver_data:/var/opt/mssql
     restart: always
@@ -47,9 +47,9 @@ services:
       dockerfile: Dockerfile
     container_name: servicea
     environment:
-      - ConnectionStrings:Redis=redis:6379
-      - ConnectionStrings:MongoDb=mongodb://mongouser:123@mongodb:27017 # Kimlik bilgileri eklendi
-      - ConnectionStrings:SqlServer=Server=sqlserver-service,1433;Database=master;User Id=sa;Password=YourStrongPassword!123;Encrypt=false;TrustServerCertificate=true; # Güçlü şifre ve TrustServerCertificate eklendi
+      - ConnectionStrings:Redis=redis-service:6379
+      - ConnectionStrings:MongoDb=mongodb://mongouser:YourStrongPassword!*1.2.3@mongodb-service:27017
+      - ConnectionStrings:SqlServer=Server=sqlserver-service,1433;Database=master;User Id=sa;Password=YourStrongPassword!*1.2.3;Encrypt=false;TrustServerCertificate=true;
     ports:
       - "5001:80"
     depends_on:
