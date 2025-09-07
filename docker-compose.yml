@@ -1,27 +1,81 @@
-﻿services:
-  redis:
-    image: redis:latest
-    container_name: redis-container
-    ports:
-      - "6380:6379"
-    restart: always
+﻿version: '3.8'
 
+services:
+  # MongoDB servisi
   mongodb:
     image: mongo:latest
-    container_name: mongodb-container
+    container_name: mongodb-service
     ports:
       - "27017:27017"
     environment:
       - MONGO_INITDB_ROOT_USERNAME=mongouser
-      - MONGO_INITDB_ROOT_PASSWORD=123
+      - MONGO_INITDB_ROOT_PASSWORD=123 # Burası güncellenecek
     restart: always
+    volumes:
+      - mongodb_data:/data/db
 
+  # SQL Server servisi
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2019-latest
-    container_name: sqlserver-container
+    container_name: sqlserver-service
     ports:
       - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=123
+      - SA_PASSWORD=YourStrongPassword!123 # Lütfen güçlü bir şifre kullanın
+    volumes:
+      - sqlserver_data:/var/opt/mssql
     restart: always
+
+  # MonitoringService mikroservisiniz
+  monitoringservice:
+    build:
+      context: ./MonitoringService
+      dockerfile: Dockerfile
+    container_name: monitoringservice
+    ports:
+      - "5000:80"
+    depends_on:
+      - servicea
+      - serviceb
+    restart: always
+
+  # ServiceA mikroservisiniz
+  servicea:
+    build:
+      context: ./ServiceA
+      dockerfile: Dockerfile
+    container_name: servicea
+    environment:
+      - ConnectionStrings:Redis=redis:6379
+      - ConnectionStrings:MongoDb=mongodb://mongouser:123@mongodb:27017 # Kimlik bilgileri eklendi
+      - ConnectionStrings:SqlServer=Server=sqlserver-service,1433;Database=master;User Id=sa;Password=YourStrongPassword!123;Encrypt=false;TrustServerCertificate=true; # Güçlü şifre ve TrustServerCertificate eklendi
+    ports:
+      - "5001:80"
+    depends_on:
+      - redis
+      - mongodb
+      - sqlserver
+    restart: always
+
+  # ServiceB mikroservisiniz
+  serviceb:
+    build:
+      context: ./ServiceB
+      dockerfile: Dockerfile
+    container_name: serviceb
+    ports:
+      - "5002:80"
+    restart: always
+
+  # Redis servisi
+  redis:
+    image: redis:latest
+    container_name: redis-service
+    ports:
+      - "6379:6379"
+    restart: always
+
+volumes:
+  mongodb_data:
+  sqlserver_data:
