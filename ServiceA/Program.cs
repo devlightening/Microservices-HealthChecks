@@ -1,27 +1,39 @@
-using Microsoft.Extensions.DependencyInjection;
+using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Bu, bir Docker ortamýnda servisler arasý baðlantý için doðru yoldur.
-// Connection String'leri doðrudan appsettings.json dosyasýndan alýyoruz.
-var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
-var mongoDbConnectionString = builder.Configuration.GetConnectionString("MongoDb");
-var sqlServerConnectionString = builder.Configuration.GetConnectionString("SqlServer");
+// Add services to the container.
 
+builder.Services.AddControllers();
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddHealthChecks()
-    .AddRedis(redisConnectionString, name: "redis-check")
-    // MongoClient'ý doðrudan lambda ifadesi içinde oluþturarak hatayý çözdük
-    .AddMongoDb(
-        sp => new MongoClient(mongoDbConnectionString),
-        name: "mongodb-check",
-        failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy,
-        tags: new[] { "mongodb" }
-    )
-    .AddSqlServer(sqlServerConnectionString, name: "sqlserver-check", tags: new[] { "sqlserver" });
+    .AddMongoDb(sp => new MongoClient(builder.Configuration.GetConnectionString("MongoDb")), name: "mongodb-check", failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy, tags: new[] { "mongodb" })
+    .AddRedis(builder.Configuration.GetConnectionString("Redis"), name: "redis-check", failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy, tags: new[] { "redis" })
+    .AddSqlServer(builder.Configuration.GetConnectionString("SqlServer"), name: "sqlserver-check", failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy, tags: new[] { "sqlserver" });
 
 var app = builder.Build();
-app.UseHealthChecks("/health");
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+
+app.MapHealthChecks("/healthA", new HealthCheckOptions
+{
+    Predicate = r => r.Tags.Any(),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
 app.Run();

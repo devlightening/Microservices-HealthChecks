@@ -4,6 +4,8 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add services to the container.
+
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -22,13 +24,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.MapHealthChecks("/healthB", new HealthCheckOptions
 {
+    Predicate = r => r.Tags.Any(),
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
 

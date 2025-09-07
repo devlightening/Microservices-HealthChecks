@@ -4,6 +4,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add services to the container.
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -16,13 +17,13 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddHealthChecksUI(setupSettings: setup =>
 {
-    // Ýzlenecek servislerin URL'leri
+    // URLs of the services to be monitored
     setup.AddHealthCheckEndpoint("ServiceA Health Check", "/healthA");
     setup.AddHealthCheckEndpoint("ServiceB Health Check", "/healthB");
     setup.SetEvaluationTimeInSeconds(5);
-    setup.MaximumHistoryEntriesPerEndpoint(50); 
+    setup.MaximumHistoryEntriesPerEndpoint(50);
     setup.SetApiMaxActiveRequests(1);
-}).AddInMemoryStorage();
+}).AddSqlServerStorage("SqlServer");
 
 var app = builder.Build();
 
