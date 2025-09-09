@@ -1,4 +1,4 @@
-﻿version: '3.8'
+version: '3.8'
 
 services:
   # MongoDB servisi
@@ -13,6 +13,11 @@ services:
     restart: always
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # SQL Server servisi
   sqlserver:
@@ -26,19 +31,24 @@ services:
     volumes:
       - sqlserver_data:/var/opt/mssql
     restart: always
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "YourStrongPassword!*1.2.3", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # MonitoringService mikroservisiniz
-  monitoringservice:
-    build:
-      context: ./MonitoringService
-      dockerfile: Dockerfile
-    container_name: monitoringservice
+  # Redis servisi
+  redis:
+    image: redis:latest
+    container_name: redis-service
     ports:
-      - "5000:80"
-    depends_on:
-      - servicea
-      - serviceb
+      - "6379:6379"
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ServiceA mikroservisiniz
   servicea:
@@ -51,11 +61,14 @@ services:
       - ConnectionStrings:MongoDb=mongodb://mongouser:YourStrongPassword!*1.2.3@mongodb-service:27017
       - ConnectionStrings:SqlServer=Server=sqlserver-service,1433;Database=HealthCheckUIDb;User Id=sa;Password=YourStrongPassword!*1.2.3;Encrypt=false;TrustServerCertificate=true;
     ports:
-      - "5001:80"
+      - "5007:80"
     depends_on:
-      - redis
-      - mongodb
-      - sqlserver
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      sqlserver:
+        condition: service_healthy
     restart: always
 
   # ServiceB mikroservisiniz
@@ -64,16 +77,30 @@ services:
       context: ./ServiceB
       dockerfile: Dockerfile
     container_name: serviceb
+    environment:
+      - ConnectionStrings:Redis=redis-service:6379
     ports:
-      - "5002:80"
+      - "5006:80"
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: always
 
-  # Redis servisi
-  redis:
-    image: redis:latest
-    container_name: redis-service
+  # MonitoringService mikroservisiniz
+  monitoringservice:
+    build:
+      context: ./MonitoringService
+      dockerfile: Dockerfile
+    container_name: monitoringservice
     ports:
-      - "6379:6379"
+      - "5005:80"
+    depends_on:
+      servicea:
+        condition: service_started
+      serviceb:
+        condition: service_started
+      sqlserver:
+        condition: service_healthy
     restart: always
 
 volumes:

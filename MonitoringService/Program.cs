@@ -1,49 +1,31 @@
-using HealthChecks.UI.Client;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-
-builder.Services.AddHealthChecks()
-    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "self" });
-
-builder.Services.AddHealthChecksUI(setupSettings: setup =>
-{
-    // URLs of the services to be monitored
-    setup.AddHealthCheckEndpoint("ServiceA Health Check", "/healthA");
-    setup.AddHealthCheckEndpoint("ServiceB Health Check", "/healthB");
-    setup.SetEvaluationTimeInSeconds(5);
-    setup.MaximumHistoryEntriesPerEndpoint(50);
-    setup.SetApiMaxActiveRequests(1);
-}).AddSqlServerStorage("SqlServer");
+builder.Services.AddHealthChecksUI(
+    settings =>
+    {
+        settings.AddHealthCheckEndpoint("Service A", "https://localhost:7126/health");
+        settings.AddHealthCheckEndpoint("Service B", "https://localhost:7056/health");
+        settings.SetEvaluationTimeInSeconds(3);
+        settings.SetApiMaxActiveRequests(3);
+        settings.ConfigureApiEndpointHttpclient((serviceProvider, httpClient) =>
+        {
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "....");
+        })
+        .ConfigureWebhooksEndpointHttpclient((serviceProvider, httpClient) =>
+        {
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "....");
+        });
+    }
+).AddSqlServerStorage("Server=localhost, 1433;Database=HealthCheckUIDB;User ID=SA;Password=1q2w3e4r+!;TrustServerCertificate=True");
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.UseHealthChecksUI(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-app.UseAuthorization();
-app.MapControllers();
-
-app.MapHealthChecksUI();
-
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    Predicate = r => r.Tags.Contains("self"),
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+    options.UIPath = "/health-ui";
+    options.AddCustomStylesheet("health-check-ui.css");
 });
 
 app.Run();

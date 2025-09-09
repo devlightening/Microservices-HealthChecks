@@ -1,38 +1,32 @@
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
 builder.Services.AddHealthChecks()
-    .AddMongoDb(sp => new MongoClient(builder.Configuration.GetConnectionString("MongoDb")), name: "mongodb-check", failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy, tags: new[] { "mongodb" })
-    .AddRedis(builder.Configuration.GetConnectionString("Redis"), name: "redis-check", failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy, tags: new[] { "redis" })
-    .AddSqlServer(builder.Configuration.GetConnectionString("SqlServer"), name: "sqlserver-check", failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy, tags: new[] { "sqlserver" });
+    .AddRedis(
+        redisConnectionString: "localhost:6379",
+        name: "Redis Check",
+        failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy,
+        tags: new string[] { "redis" }
+    )
+    .AddMongoDb(
+        mongodbConnectionString: "mongodb://localhost:27017",
+        name: "MongoDB Check",
+        failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy,
+        tags: new string[] { "mongodb" }
+    )
+    .AddNpgSql(
+        connectionString: "User ID=postgres;Password=123456;Host=localhost;Port=5432;Database=postgres;",
+        name: "PostgreSQL",
+        healthQuery: "SELECT 1",
+        failureStatus: HealthStatus.Degraded | HealthStatus.Unhealthy,
+        tags: new string[] { "postgresql", "sql", "db" }
+    );
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.UseHealthChecks("/health", new HealthCheckOptions
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-app.UseAuthorization();
-app.MapControllers();
-
-app.MapHealthChecks("/healthA", new HealthCheckOptions
-{
-    Predicate = r => r.Tags.Any(),
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
 
